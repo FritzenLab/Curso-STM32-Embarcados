@@ -1,0 +1,8 @@
+USART2 on Nucleo-F401RE:
+
+Pin TX: PA2 (Arduino D1)
+Pin RX: PA3 (Arduino D0)
+
+USART1 on Nucleo-F401RE:
+Pin TX: PA9 (Arduino D8)
+Pin RX: PA10 (Arduino D2)
