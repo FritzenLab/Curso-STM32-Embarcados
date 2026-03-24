@@ -63,6 +63,8 @@ uint8_t rx1_byte = 0;
 char    rx1_buf[32];
 uint8_t rx1_idx  = 0;
 uint32_t received_count = 0;
+uint8_t ledstatus= 0;
+
 	/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -122,7 +124,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  	uint8_t btn_state = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+	  	//uint8_t btn_state = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin); // this is the HAL
+	  	// way of reading a push button
+
+	  	// And this is the baremetal way:
+	  	  uint8_t btn_state = !(GPIOC->IDR & (1 << 13));
 
 		// Detect falling edge (press) with debounce
 		if ((btn_state == GPIO_PIN_RESET) &&
@@ -355,7 +361,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if (tim2_counter >= 20)          // 20 × 10ms = 200ms
         {
             tim2_counter = 0;
-            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);	  // LED2
+            //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);	  // This is the HAL way
+            //of toggling PA5 (LD2)
+
+            // this is the baremetal way of toggling PA5 (LD2)
+            if(ledstatus == 0){
+            	ledstatus= 1;
+            	GPIOA->BSRR = (1 << 5);
+            }else{
+            	ledstatus= 0;
+            	GPIOA->BSRR = (1 << (5 + 16));
+            }
         }
 
     }

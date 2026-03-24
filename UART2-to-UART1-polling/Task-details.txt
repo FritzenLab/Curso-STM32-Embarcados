@@ -21,3 +21,6 @@ produce a 10ms interrupt, which has to be counted up to 20 to produce 200ms:
 
 - There is protection to only send information to Putty via USART2 when 
 the whole package of bytes have arrived.
+
+- I have implemented both HAL and baremetal ways of reading the push button
+and driving the LED.
