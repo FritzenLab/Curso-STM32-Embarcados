@@ -1,0 +1,2 @@
+- This code blinks an LED (LD2 pin PA5) using the interrupt tim2 (non-blocking).
+- Blinking depends on pressing the button B1 on pin PC13.

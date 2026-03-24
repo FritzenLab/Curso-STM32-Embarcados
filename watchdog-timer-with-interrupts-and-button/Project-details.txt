@@ -1,0 +1,24 @@
+- Watchdog example:
+
+- LD2 is blinking; if and when I press the B1 push button, the code will
+get trapped inside a while(1) infinite loop (LD2 stops blinking), 
+which after 10 seconds will trigger the watchdog. This will reset the microcontroller.
+
+For a 10 seconds delay, watchdog values are:
+Prescaler: 256 (the highest it can go, Prescalers = {4, 8, 16, 32, 64, 128, 256})
+Reload: 1249
+
+formulas: Timeout: ((Reload + 1) * Prescaler) / Flsi
+where Flsi is the crystal value, 32,000 (32 kHz)
+
+- Button: B1
+- LED: LD2 
+
+- Timer interrupt: TIM2
+  TIM2 values for 10ms interrupt:	
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 84-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 10000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
