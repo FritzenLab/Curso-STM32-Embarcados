@@ -168,9 +168,6 @@ Discarded input sections
  .bss           0x00000000        0x0 ./Core/Src/main.o
  .rodata.CHANNEL_OFFSET_TAB
                 0x00000000        0x5 ./Core/Src/main.o
- .bss.seed      0x00000000        0x2 ./Core/Src/main.o
- .bss.reseed_timer
-                0x00000000        0x4 ./Core/Src/main.o
  .group         0x00000000        0xc ./Core/Src/random_utils.o
  .group         0x00000000        0xc ./Core/Src/random_utils.o
  .group         0x00000000        0xc ./Core/Src/random_utils.o
@@ -4071,24 +4068,24 @@ LOAD C:/ST/STM32CubeIDE_2.0.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
 LOAD C:/ST/STM32CubeIDE_2.0.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libm.a
 LOAD C:/ST/STM32CubeIDE_2.0.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v6-m/nofp\libgcc.a
 
-.debug_info     0x00000000     0xd0a6
- .debug_info    0x00000000     0x12ea ./Core/Src/main.o
- .debug_info    0x000012ea      0xc00 ./Core/Src/random_utils.o
- .debug_info    0x00001eea      0xf76 ./Core/Src/stm32g0xx_hal_msp.o
- .debug_info    0x00002e60      0xb29 ./Core/Src/stm32g0xx_it.o
- .debug_info    0x00003989      0x6a3 ./Core/Src/syscalls.o
- .debug_info    0x0000402c      0x168 ./Core/Src/sysmem.o
- .debug_info    0x00004194      0x316 ./Core/Src/system_stm32g0xx.o
- .debug_info    0x000044aa       0x30 ./Core/Startup/startup_stm32g030f6px.o
- .debug_info    0x000044da      0x8f0 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal.o
- .debug_info    0x00004dca     0x155e ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_adc.o
- .debug_info    0x00006328      0xb2e ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_adc_ex.o
- .debug_info    0x00006e56      0x8a9 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_cortex.o
- .debug_info    0x000076ff      0x5ac ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_gpio.o
- .debug_info    0x00007cab      0x496 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_pwr_ex.o
- .debug_info    0x00008141      0xae9 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_rcc.o
- .debug_info    0x00008c2a     0x2bc4 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim.o
- .debug_info    0x0000b7ee     0x18b8 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim_ex.o
+.debug_info     0x00000000     0xd083
+ .debug_info    0x00000000     0x12c7 ./Core/Src/main.o
+ .debug_info    0x000012c7      0xc00 ./Core/Src/random_utils.o
+ .debug_info    0x00001ec7      0xf76 ./Core/Src/stm32g0xx_hal_msp.o
+ .debug_info    0x00002e3d      0xb29 ./Core/Src/stm32g0xx_it.o
+ .debug_info    0x00003966      0x6a3 ./Core/Src/syscalls.o
+ .debug_info    0x00004009      0x168 ./Core/Src/sysmem.o
+ .debug_info    0x00004171      0x316 ./Core/Src/system_stm32g0xx.o
+ .debug_info    0x00004487       0x30 ./Core/Startup/startup_stm32g030f6px.o
+ .debug_info    0x000044b7      0x8f0 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal.o
+ .debug_info    0x00004da7     0x155e ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_adc.o
+ .debug_info    0x00006305      0xb2e ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_adc_ex.o
+ .debug_info    0x00006e33      0x8a9 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_cortex.o
+ .debug_info    0x000076dc      0x5ac ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_gpio.o
+ .debug_info    0x00007c88      0x496 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_pwr_ex.o
+ .debug_info    0x0000811e      0xae9 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_rcc.o
+ .debug_info    0x00008c07     0x2bc4 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim.o
+ .debug_info    0x0000b7cb     0x18b8 ./Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim_ex.o
 
 .debug_abbrev   0x00000000     0x21a9
  .debug_abbrev  0x00000000      0x2c4 ./Core/Src/main.o
@@ -4309,7 +4306,7 @@ LOAD C:/ST/STM32CubeIDE_2.0.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
 
 .debug_str      0x00000000    0x900d6
  .debug_str     0x00000000    0x900d6 ./Core/Src/main.o
-                              0x8b065 (size before relaxing)
+                              0x8b053 (size before relaxing)
  .debug_str     0x000900d6        0x0 ./Core/Src/random_utils.o
                               0x8abef (size before relaxing)
  .debug_str     0x000900d6        0x0 ./Core/Src/stm32g0xx_hal_msp.o
