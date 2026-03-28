@@ -1,0 +1,23 @@
+Initial experiment:
+
+- Potentiometer on PA0 (ADC_IN0)
+- Push button on PA1
+- LED1 with PWM on PA8 (TIM1 for PWM)
+- LED2 for blinking on PA6 with TIM3
+- Onboard LED on PA4 blinking also with TIM3
+
+For TIM1 (1 ms), PSC= 15 and ARR= 999
+For TIM3 (10 ms), PSC= 15 and ARR= 9999	
+
+Board schematic: 
+https://github.com/WeActStudio/WeActStudio.STM32G0xxC0xxCoreBoard
+
+- Added AHT21B humidity and temperature sensor reading. SDA on pin PB7
+and SCL on pin PB6. This starts measurement: AHT21_StartMeasurement(&hi2c1, &aht21);
+This has to be put inside the main loop to always 
+execute AHT21_Process(&hi2c1, &aht21); 
+
+- Curiosity: the PWM function __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, duty)
+takes values between 0-1000. This is since the TIM1 ARR is equal to 999.
+So changing the ARR value of TIM1 will change the range the PWM function
+accepts.

@@ -1,0 +1,6 @@
+../Core/Src/aht21.c:14:6:AHT21_Init	1
+../Core/Src/aht21.c:25:6:AHT21_StartMeasurement	2
+../Core/Src/aht21.c:41:6:AHT21_Process	7
+../Core/Src/aht21.c:72:13:AHT21_Convert	1
+../Core/Src/aht21.c:95:6:HAL_I2C_MasterTxCpltCallback	1
+../Core/Src/aht21.c:100:6:HAL_I2C_MasterRxCpltCallback	1

@@ -1,0 +1,3 @@
+../Core/Src/random_utils.c:15:6:init_random	1
+../Core/Src/random_utils.c:31:5:random_10_100	1
+../Core/Src/random_utils.c:35:6:maybe_reseed	2

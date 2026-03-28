@@ -1,0 +1,10 @@
+Blinking and LED with pseudo-random number generation
+
+- LED on PA4
+
+- Timer TIM3 for controller (also for randomness source)
+For TIM3 (10 ms), PSC= 15 and ARR= 9999
+
+- Analog pin PA1 (IN1) for randomness source
+
+- Random seed equation: seed = HAL_GetTick() ^ TIM3->CNT ^ HAL_ADC_GetValue(&hadc1);
