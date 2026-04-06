@@ -1,0 +1,563 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{courier}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\lstdefinelanguage{C}{
+  morekeywords={
+    void,char,short,int,long,float,double,signed,unsigned,
+    const,volatile,static,extern,struct,union,enum,typedef,
+    if,else,for,while,do,return,switch,case,break,continue,
+    goto,sizeof,
+    GPIO_InitTypeDef,TIM_HandleTypeDef,
+    HAL_Init,HAL_Delay,HAL_GPIO_Init,HAL_GPIO_WritePin,HAL_GPIO_ReadPin,
+    HAL_TIM_Base_Init,HAL_TIM_Base_Start_IT,HAL_RCC_OscConfig,
+    HAL_RCC_ClockConfig,HAL_RCC_GPIOA_CLK_ENABLE,HAL_RCC_TIM3_CLK_ENABLE,
+    SystemClock_Config,Error_Handler
+  },
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+}
+
+\lstset{
+  language=C,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  tabsize=2,
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single
+}
+
+\title{Reading a DS18B20 with STM32G030 Using TIM3 10\,ms Interrupts}
+\author{Practical Coding Walkthrough}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This document shows all essential coding steps to read a DS18B20 temperature sensor
+using an STM32G030 microcontroller. Timer~3 (TIM3) is configured to generate an
+interrupt every 10\,ms, and the DS18B20 is read every 2\,s from inside a simple
+state machine driven by that interrupt. The examples use STM32Cube HAL-style C code.
+
+\section{Hardware connections}
+
+\subsection{Basic wiring}
+
+\begin{itemize}
+  \item DS18B20 \textbf{DQ} pin connected to STM32G030 pin \textbf{PA1} (example).
+  \item DS18B20 \textbf{GND} to MCU GND.
+  \item DS18B20 \textbf{VDD} to 3.3\,V (normal powered mode).
+  \item One 4.7\,k$\Omega$ pull-up resistor from DQ (PA1) to 3.3\,V.
+\end{itemize}
+
+You can change the GPIO pin later; only the pin definitions in the code need to be updated.
+
+\subsection{GPIO configuration idea}
+
+The DS18B20 uses an open-drain 1-Wire bus. We emulate this by:
+\begin{itemize}
+  \item Configuring the pin as push-pull output when driving low.
+  \item Reconfiguring as input (high-impedance) to release the line (pulled high by the resistor).
+\end{itemize}
+
+\section{TIM3 configuration for 10\,ms interrupts}
+
+Assume:
+\begin{itemize}
+  \item System core clock: 16\,MHz (HSI, default for many STM32G0 setups).
+  \item TIM3 clock: 16\,MHz.
+  \item We want an update event every 10\,ms.
+\end{itemize}
+
+Timer period:
+
+
+\[
+  T = \frac{(PSC+1)\cdot(ARR+1)}{f_{\text{TIM}}}
+\]
+
+
+Choose:
+\begin{itemize}
+  \item PSC = 1599
+  \item ARR = 99
+\end{itemize}
+Then:
+
+
+\[
+  T = \frac{(1599+1)\cdot(99+1)}{16\,000\,000} = \frac{1600\cdot100}{16\,000\,000} = 0.01\,\text{s} = 10\,\text{ms}
+\]
+
+
+
+\subsection{TIM3 initialization code}
+
+\begin{lstlisting}
+// Global timer handle
+TIM_HandleTypeDef htim3;
+
+static void MX_TIM3_Init(void)
+{
+  __HAL_RCC_TIM3_CLK_ENABLE();
+
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler         = 1599;   // PSC
+  htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
+  htim3.Init.Period            = 99;     // ARR
+  htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  // Enable update interrupt
+  HAL_NVIC_SetPriority(TIM3_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(TIM3_IRQn);
+
+  if (HAL_TIM_Base_Start_IT(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+\end{lstlisting}
+
+\section{Minimal 1-Wire + DS18B20 driver}
+
+\subsection{Pin abstraction}
+
+\begin{lstlisting}
+#include "stm32g0xx_hal.h"
+
+// Adjust these to your actual pin choice
+#define DS18B20_GPIO_PORT      GPIOA
+#define DS18B20_GPIO_PIN       GPIO_PIN_1
+
+// ROM commands
+#define DS18B20_CMD_SKIP_ROM   0xCC
+// Function commands
+#define DS18B20_CMD_CONVERT_T  0x44
+#define DS18B20_CMD_READ_SCR   0xBE
+
+extern TIM_HandleTypeDef htim3; // if you want to use HAL_Delay or timer-based delays
+
+static void DS18B20_DQ_Output(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin   = DS18B20_GPIO_PIN;
+  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull  = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(DS18B20_GPIO_PORT, &GPIO_InitStruct);
+}
+
+static void DS18B20_DQ_Input(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin  = DS18B20_GPIO_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(DS18B20_GPIO_PORT, &GPIO_InitStruct);
+}
+
+static void DQ_WriteLow(void)
+{
+  DS18B20_DQ_Output();
+  HAL_GPIO_WritePin(DS18B20_GPIO_PORT, DS18B20_GPIO_PIN, GPIO_PIN_RESET);
+}
+
+static void DQ_Release(void)
+{
+  DS18B20_DQ_Input(); // line floats high via pull-up
+}
+
+static GPIO_PinState DQ_Read(void)
+{
+  return HAL_GPIO_ReadPin(DS18B20_GPIO_PORT, DS18B20_GPIO_PIN);
+}
+\end{lstlisting}
+
+\subsection{Microsecond delay helper}
+
+For simplicity, we use a crude delay based on a busy loop. For production, use a timer or DWT.
+
+\begin{lstlisting}
+static void delay_us(uint32_t us)
+{
+  // crude approximation for 16 MHz core
+  // each loop ~4 cycles -> adjust as needed
+  uint32_t count = us * 4;
+  while (count--)
+  {
+    __NOP();
+  }
+}
+\end{lstlisting}
+
+\subsection{1-Wire reset and presence}
+
+\begin{lstlisting}
+static uint8_t OneWire_Reset(void)
+{
+  uint8_t presence;
+
+  DQ_WriteLow();
+  delay_us(480);        // reset low
+  DQ_Release();
+  delay_us(70);         // wait before reading
+
+  presence = (DQ_Read() == GPIO_PIN_RESET) ? 1 : 0; // presence pulse
+
+  delay_us(410);        // finish timeslot
+  return presence;
+}
+\end{lstlisting}
+
+\subsection{Write and read bit}
+
+\begin{lstlisting}
+static void OneWire_WriteBit(uint8_t bit)
+{
+  DQ_WriteLow();
+  if (bit)
+  {
+    delay_us(6);        // write '1' low time
+    DQ_Release();
+    delay_us(64);
+  }
+  else
+  {
+    delay_us(60);       // write '0' low time
+    DQ_Release();
+    delay_us(10);
+  }
+}
+
+static uint8_t OneWire_ReadBit(void)
+{
+  uint8_t bit;
+
+  DQ_WriteLow();
+  delay_us(6);
+  DQ_Release();
+  delay_us(9);          // wait before sampling
+  bit = (DQ_Read() == GPIO_PIN_SET) ? 1 : 0;
+  delay_us(55);         // rest of timeslot
+
+  return bit;
+}
+\end{lstlisting}
+
+\subsection{Write and read byte}
+
+\begin{lstlisting}
+static void OneWire_WriteByte(uint8_t data)
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    OneWire_WriteBit(data & 0x01);
+    data >>= 1;
+  }
+}
+
+static uint8_t OneWire_ReadByte(void)
+{
+  uint8_t data = 0;
+
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    uint8_t bit = OneWire_ReadBit();
+    data >>= 1;
+    if (bit)
+    {
+      data |= 0x80;
+    }
+  }
+  return data;
+}
+\end{lstlisting}
+
+\subsection{Start temperature conversion}
+
+\begin{lstlisting}
+static uint8_t DS18B20_StartConversion(void)
+{
+  if (!OneWire_Reset())
+  {
+    return 0; // no presence
+  }
+
+  OneWire_WriteByte(DS18B20_CMD_SKIP_ROM);
+  OneWire_WriteByte(DS18B20_CMD_CONVERT_T);
+
+  // Conversion time depends on resolution; for 12-bit, up to 750 ms.
+  // We'll wait using our 2-second timer-based scheme, so no blocking here.
+  return 1;
+}
+\end{lstlisting}
+
+\subsection{Read scratchpad and convert to Celsius}
+
+\begin{lstlisting}
+static uint8_t DS18B20_ReadScratchpad(uint8_t *scratchpad, uint8_t len)
+{
+  if (!OneWire_Reset())
+  {
+    return 0;
+  }
+
+  OneWire_WriteByte(DS18B20_CMD_SKIP_ROM);
+  OneWire_WriteByte(DS18B20_CMD_READ_SCR);
+
+  for (uint8_t i = 0; i < len; i++)
+  {
+    scratchpad[i] = OneWire_ReadByte();
+  }
+
+  return 1;
+}
+
+static float DS18B20_ConvertToCelsius(uint8_t *scratchpad)
+{
+  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
+  // Default 12-bit resolution: LSB = 0.0625°C
+  float temp = (float)raw * 0.0625f;
+  return temp;
+}
+\end{lstlisting}
+
+\section{Integration with TIM3 interrupt (2\,s period)}
+
+We use the 10\,ms TIM3 interrupt to:
+\begin{itemize}
+  \item Increment a counter.
+  \item Every 200 ticks (2\,s), start a DS18B20 conversion.
+  \item After enough time for conversion (e.g.\ 750\,ms), read the scratchpad.
+\end{itemize}
+
+For simplicity, we implement a small state machine.
+
+\subsection{Global variables and state machine}
+
+\begin{lstlisting}
+#include "main.h"
+
+TIM_HandleTypeDef htim3;
+
+// 10 ms tick counter
+volatile uint32_t g_tick10ms = 0;
+
+// DS18B20 state machine
+typedef enum {
+  DS_STATE_IDLE = 0,
+  DS_STATE_START_CONV,
+  DS_STATE_WAIT_CONV,
+  DS_STATE_READ_TEMP
+} DS_State_t;
+
+volatile DS_State_t g_dsState = DS_STATE_IDLE;
+volatile uint32_t   g_dsTimerTicks = 0;   // counts 10 ms ticks
+volatile float      g_lastTemperatureC = 0.0f;
+volatile uint8_t    g_dsError = 0;
+\end{lstlisting}
+
+\subsection{TIM3 IRQ handler and callback}
+
+\begin{lstlisting}
+void TIM3_IRQHandler(void)
+{
+  HAL_TIM_IRQHandler(&htim3);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM3)
+  {
+    g_tick10ms++;
+
+    // State machine for DS18B20
+    switch (g_dsState)
+    {
+      case DS_STATE_IDLE:
+        // Every 200 ticks (2 s), start a new conversion
+        if ((g_tick10ms % 200) == 0)
+        {
+          if (DS18B20_StartConversion())
+          {
+            g_dsTimerTicks = 0;
+            g_dsState = DS_STATE_WAIT_CONV;
+          }
+          else
+          {
+            g_dsError = 1;
+          }
+        }
+        break;
+
+      case DS_STATE_WAIT_CONV:
+        g_dsTimerTicks++;
+        // Wait at least 750 ms for 12-bit conversion
+        if (g_dsTimerTicks >= 75) // 75 * 10 ms = 750 ms
+        {
+          g_dsState = DS_STATE_READ_TEMP;
+        }
+        break;
+
+      case DS_STATE_READ_TEMP:
+      {
+        uint8_t scratchpad[9];
+        if (DS18B20_ReadScratchpad(scratchpad, 9))
+        {
+          g_lastTemperatureC = DS18B20_ConvertToCelsius(scratchpad);
+          g_dsError = 0;
+        }
+        else
+        {
+          g_dsError = 1;
+        }
+        g_dsState = DS_STATE_IDLE;
+        break;
+      }
+
+      default:
+        g_dsState = DS_STATE_IDLE;
+        break;
+    }
+  }
+}
+\end{lstlisting}
+
+\subsection{GPIO and clock initialization}
+
+\begin{lstlisting}
+static void MX_GPIO_Init(void)
+{
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  // Start with line released (input)
+  GPIO_InitStruct.Pin  = DS18B20_GPIO_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(DS18B20_GPIO_PORT, &GPIO_InitStruct);
+}
+
+void SystemClock_Config(void)
+{
+  // Minimal example: configure HSI at 16 MHz
+  // Use CubeMX-generated code in a real project.
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState       = RCC_HSI_ON;
+  RCC_OscInitStruct.HSIDiv         = RCC_HSI_DIV1;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_NONE;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                   | RCC_CLOCKTYPE_PCLK1;
+  RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+\end{lstlisting}
+
+\subsection{Example \texttt{main.c}}
+
+\begin{lstlisting}
+#include "stm32g0xx_hal.h"
+
+// Forward declarations
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_TIM3_Init(void);
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_TIM3_Init();
+
+  // Optionally, start first conversion immediately
+  g_dsState = DS_STATE_IDLE;
+  g_dsError = 0;
+
+  while (1)
+  {
+    // Main loop can use g_lastTemperatureC
+    // Example: simple polling or breakpoint inspection
+
+    if (g_dsError)
+    {
+      // handle error (e.g., blink LED, log, etc.)
+    }
+
+    // Small delay to reduce power / CPU usage
+    HAL_Delay(100);
+  }
+}
+
+void Error_Handler(void)
+{
+  __disable_irq();
+  while (1)
+  {
+    // stay here
+  }
+}
+\end{lstlisting}
+
+\section{Adapting pins and timers}
+
+\subsection{Changing the DS18B20 pin}
+
+To use another pin:
+\begin{itemize}
+  \item Update \lstinline|DS18B20_GPIO_PORT| and \lstinline|DS18B20_GPIO_PIN|.
+  \item Ensure the corresponding GPIO clock is enabled in \lstinline|MX_GPIO_Init|.
+  \item Adjust any board-specific constraints (e.g.\ if the pin is shared with other peripherals).
+\end{itemize}
+
+\subsection{Changing the timer or interrupt period}
+
+To use another timer (e.g.\ TIM14) or a different period:
+\begin{itemize}
+  \item Change the handle and instance in the timer init function.
+  \item Recalculate PSC and ARR for the desired period.
+  \item Update the IRQ handler name and NVIC configuration.
+  \item Adjust the state machine tick counts (e.g.\ 2\,s = 200 ticks at 10\,ms).
+\end{itemize}
+
+\end{document}

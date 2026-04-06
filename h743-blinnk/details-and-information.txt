@@ -1,0 +1,11 @@
+Blink dev board LED and send UART information
+
+- Onboard LED on pin PC13, using TIM3 at 1ms (variable
+counter is used to increase that delay):
+htim3.Init.Prescaler = 63;
+htim3.Init.Period = 999;
+
+- UART (actually LPUART) on PA9 LPUART_TX / PA10 LPUART_RX
+I am sending data every two senconds (an incremental counter) to
+the computer. Using the HAL_UART_Transmit_IT(), which is interrupt
+based.
